@@ -1,3 +1,10 @@
+Connect Celeb is a modern MERN stack Project where it got devloped by using various new technologies which include OPEN AI, Meta's llama-2-13b-chat .
+
+
+
+
+
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
