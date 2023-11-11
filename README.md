@@ -1,4 +1,7 @@
-Connect Celeb is a modern MERN stack Project where it got devloped by using various new technologies which include OPEN AI, Meta's llama-2-13b-chat .
+Connect Celeb is a modern MERN stack Project where it got devloped by using various new technologies which include OPEN AI, Meta's llama-2-13b-chat, google auth feature and more. 
+
+
+
 
 
 
