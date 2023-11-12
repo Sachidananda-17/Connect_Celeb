@@ -1,6 +1,6 @@
 # Connect_Celeb
 
-## Live: https://connect-celeb.vercel.app/
+## Live: https://connect-celeb.vercel.app
 
 <p align = "center">
  <img src="Connect_Celeb.png" alt = "Connect_Celeb">
