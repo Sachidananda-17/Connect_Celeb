@@ -11,7 +11,7 @@ Connect Celeb is a modern MERN stack Project where it got devloped by using vari
 
 - **Authentication:** Clerk Authentication
 - **Front-end:** NextJS, TypeScript, Shadcn, Radix , Tailwind CSS
-- **Back-end1:** NodeJS, PineCone vector database , PalnetScale(Sql), Open AI (API) , meta llama-2-13b training model.
+- **Back-end:** NodeJS, PineCone vector database , PalnetScale(Sql), Open AI (API) , meta llama-2-13b training model.
 
 
 ## Features:
