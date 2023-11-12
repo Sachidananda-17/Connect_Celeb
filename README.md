@@ -15,7 +15,7 @@ Connect Celeb is a modern MERN stack Project where it got devloped by using vari
 
 
 ## Features:
- - The Celebrity created by a respective user can be used by logined User in the  web application
+ - The Celebrity created by a respective user can be used by any logined User in the  web application
 - But the User who had created the model has the only access to edit or delete the companion information from the application.
 
 ## To Create your own Celebrity
