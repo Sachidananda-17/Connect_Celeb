@@ -12,13 +12,19 @@ Connect Celeb is a modern MERN stack Project where it got devloped by using vari
 - **Authentication:** Clerk Authentication
 - **Front-end:** NextJS, TypeScript, Shadcn, Radix , Tailwind CSS
 - **Back-end:** NodeJS, PineCone vector database , PalnetScale(Sql), Open AI (API) , meta llama-2-13b training model.
-
+<p align = "center">
+ <img src="Images/2.png" alt = "Connect_Celeb">
+</p>
 
 ## Features:
  - The Celebrity created by a respective user can be used by any logined User in the  web application
 - But the User who had created the model has the only access to edit or delete the companion information from the application.
 
 ## To Create your own Celebrity
+
+<p align = "center">
+ <img src="Images/3.png" alt = "Connect_Celeb">
+</p>
 
 The user has to be give the short description of the celebrity and need to provide the sample chat of the celebrity how they talk in few lines.
 
