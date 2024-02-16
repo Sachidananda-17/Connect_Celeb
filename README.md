@@ -3,7 +3,7 @@
 ## Live: https://connect-celeb.vercel.app
 
 <p align = "center">
- <img src="Connect_Celeb.png" alt = "Connect_Celeb">
+ <img src="Images/1.png" alt = "Connect_Celeb">
 </p>
 Connect Celeb is a modern MERN stack Project where it got devloped by using various new technologies which include OPEN AI, Meta's llama-2-13b-chat, google auth and more . This application allow users to have a chat experience with their favourite celebrity they want to talk . These celebrities are AI trained models who were trained to behave and act as same as the respective celebrities.
 
