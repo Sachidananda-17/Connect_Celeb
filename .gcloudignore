@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.db.tmp
+.env.clerk.tmp
+Images
+Connect_Celeb.png
+!.env.production
