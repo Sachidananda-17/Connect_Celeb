@@ -11,7 +11,7 @@ interface ImageUploadProps {
 
 // Resize to a 320px square JPEG data URL (~20-40KB) so it can be stored directly
 // in the database — no external image host needed.
-const toAvatarDataUrl = (file: File): Promise<string> =>
+export const toAvatarDataUrl = (file: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
     const img = document.createElement("img");
     img.onload = () => {

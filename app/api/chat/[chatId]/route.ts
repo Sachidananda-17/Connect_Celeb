@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 
 import { rateLimit } from "@/lib/rate-limit";
 import { sarvamChat, ChatTurn } from "@/lib/sarvam";
+import { lookupFacts, needsLookup } from "@/lib/research";
+import { buildSystemPrompt } from "@/lib/persona";
 import prismadb from "@/lib/prismadb";
+
+export const maxDuration = 60;
 
 export async function POST(
   request: Request,
@@ -41,23 +45,23 @@ export async function POST(
       orderBy: { createdAt: "desc" },
       take: 20,
     });
+    const turns = history.reverse().map((m) => ({
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+      content: m.content,
+    }));
 
-    const messages: ChatTurn[] = [
-      {
-        role: "system",
-        content:
-          `You are ${companion.name}. Stay fully in character and reply as ${companion.name} would, ` +
-          `in a natural conversational tone. Reply in plain sentences, without a "${companion.name}:" prefix, ` +
-          `and keep replies short (1-4 sentences) unless asked for more. ` +
-          `Reply in the same language and script the user writes in (English, Hindi, Hinglish, Telugu, etc.).\n\n` +
-          `Character instructions:\n${companion.instructions}\n\n` +
-          `Example conversation showing how ${companion.name} talks:\n${companion.seed}`,
-      },
-      ...history.reverse().map<ChatTurn>((m) => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.content,
-      })),
-    ];
+    // Verified facts from live search, so the character never has to guess.
+    const lookup = needsLookup(prompt)
+      ? await lookupFacts({
+          personaName: companion.name,
+          recentTurns: turns.slice(0, -1),
+          question: prompt,
+        })
+      : ({ status: "skipped", facts: null } as const);
+
+    const system = buildSystemPrompt(companion, prompt, lookup);
+
+    const messages: ChatTurn[] = [{ role: "system", content: system }, ...turns];
 
     const response = await sarvamChat(messages);
 

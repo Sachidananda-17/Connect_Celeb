@@ -13,8 +13,8 @@ export async function sarvamChat(messages: ChatTurn[]): Promise<string> {
     body: JSON.stringify({
       model: SARVAM_MODEL,
       messages,
-      max_tokens: 400,
-      temperature: 0.8,
+      max_tokens: 600,
+      temperature: 0.6,
       // null disables hidden reasoning: ~1s replies instead of ~10s, and content is never empty.
       reasoning_effort: null,
     }),
@@ -26,6 +26,12 @@ export async function sarvamChat(messages: ChatTurn[]): Promise<string> {
 
   const data = await res.json();
   const msg = data?.choices?.[0]?.message ?? {};
-  const raw: string = msg.content || "";
-  return raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  let text: string = (msg.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  // If the model hit the token limit mid-sentence, cut back to the last full sentence.
+  if (data?.choices?.[0]?.finish_reason === "length") {
+    const cut = Math.max(text.lastIndexOf(". "), text.lastIndexOf("? "), text.lastIndexOf("! "), text.lastIndexOf("।"));
+    const end = /[.!?।]$/.test(text) ? text.length : cut > 0 ? cut + 1 : text.length;
+    text = text.slice(0, end).trim();
+  }
+  return text;
 }

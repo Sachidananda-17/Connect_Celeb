@@ -9,12 +9,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
   
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { ImageUpload } from "@/components/image-upload";
+import { ImageUpload, toAvatarDataUrl } from "@/components/image-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Wand2 } from "lucide-react";
+import { Wand2, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -58,6 +59,7 @@ interface CompanionFormProps {
     categoryId: z.string().min(1, {
       message: "Category is required",
     }),
+    profile: z.string().optional(),
   });
   
 
@@ -72,18 +74,54 @@ export const CompanionForm = ({
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: initialData || {
+        defaultValues: initialData ? { ...initialData, profile: initialData.profile ?? "" } : {
             name: "",
             description: "",
             instructions: "",
             seed: "",
             src: "",
             categoryId: undefined,
+            profile: "",
         },
 
     });
 
-    const isLoading = form.formState.isSubmitting;
+    const [researching, setResearching] = useState(false);
+    const isLoading = form.formState.isSubmitting || researching;
+
+    const autoBuild = async () => {
+      const name = form.getValues("name").trim();
+      if (name.length < 2) {
+        toast({ variant: "destructive", description: "Type the celebrity's name first.", duration: 3000 });
+        return;
+      }
+      setResearching(true);
+      toast({ description: `Researching ${name}… this takes about 30-60 seconds.`, duration: 8000 });
+      try {
+        const { data } = await axios.post("/api/companion/research", { name }, { timeout: 170000 });
+        const category = categories.find((c) => c.name === data.category) ?? categories[0];
+        const opts = { shouldValidate: true, shouldDirty: true };
+        form.setValue("name", data.name, opts);
+        form.setValue("description", data.description, opts);
+        form.setValue("instructions", data.instructions, opts);
+        form.setValue("seed", data.seed, opts);
+        form.setValue("profile", data.profile, opts);
+        if (category) form.setValue("categoryId", category.id, opts);
+        if (data.imageUrl && !form.getValues("src")) {
+          try {
+            const blob = await (await fetch(data.imageUrl)).blob();
+            form.setValue("src", await toAvatarDataUrl(blob), opts);
+          } catch {
+            // no photo: user can upload one
+          }
+        }
+        toast({ description: "Character built from live research. Review it, then create.", duration: 5000 });
+      } catch (error) {
+        toast({ variant: "destructive", description: "Could not research this name. Try again or fill it in manually.", duration: 5000 });
+      } finally {
+        setResearching(false);
+      }
+    };
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
       try {
@@ -146,10 +184,16 @@ export const CompanionForm = ({
                 <FormItem className="col-span-2 md:col-span-1">
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input disabled={isLoading} placeholder="Mani" {...field} />
+                    <div className="flex gap-2">
+                      <Input disabled={isLoading} placeholder="e.g. Sam Altman" {...field} />
+                      <Button type="button" variant="secondary" disabled={isLoading} onClick={autoBuild} className="shrink-0">
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        {researching ? "Researching…" : "Auto-build with AI"}
+                      </Button>
+                    </div>
                   </FormControl>
                   <FormDescription>
-                    This is how your Celeb  will be named.
+                    Type a name and click Auto-build: the AI researches the person online and fills everything in.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
