@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import { CldUploadButton } from "next-cloudinary";
+import { ChangeEvent, useRef } from "react";
 
 interface ImageUploadProps {
   value: string;
@@ -10,54 +9,61 @@ interface ImageUploadProps {
   disabled?: boolean;
 }
 
-export const ImageUpload = ({
-  value,
-  onChange,
-  disabled,
-}: ImageUploadProps) => {
-  const [isMounted, setIsMounted] = useState(false);
+// Resize to a 320px square JPEG data URL (~20-40KB) so it can be stored directly
+// in the database — no external image host needed.
+const toAvatarDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const img = document.createElement("img");
+    img.onload = () => {
+      const size = 320;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const side = Math.min(img.width, img.height);
+      canvas
+        .getContext("2d")!
+        .drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+export const ImageUpload = ({ value, onChange, disabled }: ImageUploadProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!isMounted) {
-    return false;
-  }
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onChange(await toAvatarDataUrl(file));
+    e.target.value = "";
+  };
 
   return (
     <div className="space-y-4 w-full flex flex-col justify-center items-center">
-      
-      <CldUploadButton 
-      options={{ maxFiles: 1 }} 
-      onUpload={(result: any) => onChange(result.info.secure_url)} 
-      uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}>
-        <div 
-          className="
-            p-4 
-            border-4 
-            border-dashed
-            border-primary/10 
-            rounded-lg 
-            hover:opacity-75 
-            transition 
-            flex 
-            flex-col 
-            space-y-2 
-            items-center 
-            justify-center
-          "
-        >
-          <div className="relative h-40 w-40">
-            <Image
-              fill
-              alt="Upload"
-              src={value || "/placeholder.svg"}
-              className="rounded-lg object-cover"
-            />
-          </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        disabled={disabled}
+        onChange={onFile}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        className="p-4 border-4 border-dashed border-primary/10 rounded-lg hover:opacity-75 transition flex flex-col space-y-2 items-center justify-center"
+      >
+        <div className="relative h-40 w-40">
+          <Image
+            fill
+            alt="Upload"
+            src={value || "/placeholder.svg"}
+            className="rounded-lg object-cover"
+          />
         </div>
-      </CldUploadButton>
+      </button>
     </div>
   );
 };
