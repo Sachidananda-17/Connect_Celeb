@@ -1,15 +1,9 @@
-
-import { StreamingTextResponse, LangChainStream } from "ai";
-import { auth, currentUser } from "@clerk/nextjs";
-import { Replicate } from "langchain/llms/replicate";
-import { CallbackManager } from "langchain/callbacks";
+import { currentUser } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
-import { MemoryManager } from "@/lib/memory";
 import { rateLimit } from "@/lib/rate-limit";
+import { sarvamChat, ChatTurn } from "@/lib/sarvam";
 import prismadb from "@/lib/prismadb";
-
-
 
 export async function POST(
   request: Request,
@@ -19,131 +13,70 @@ export async function POST(
     const { prompt } = await request.json();
     const user = await currentUser();
 
-    if (!user || !user.firstName || !user.id) {
+    if (!user || !user.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const identifier = request.url + "-" + user.id;
-    const { success } = await rateLimit(identifier);
-
+    const { success } = await rateLimit(`chat-${user.id}`);
     if (!success) {
       return new NextResponse("Rate limit exceeded", { status: 429 });
     }
 
     const companion = await prismadb.companion.update({
-      where: {
-        id: params.chatId
-      },
+      where: { id: params.chatId },
       data: {
         messages: {
-          create: {
-            content: prompt,
-            role: "user",
-            userId: user.id,
-          },
+          create: { content: prompt, role: "user", userId: user.id },
         },
-      }
+      },
     });
 
     if (!companion) {
       return new NextResponse("Companion not found", { status: 404 });
     }
 
-    const name = companion.id;
-    const companion_file_name = name + ".txt";
-
-    const companionKey = {
-      companionName: name!,
-      userId: user.id,
-      modelName: "llama2-13b",
-    };
-    const memoryManager = await MemoryManager.getInstance();
-
-    const records = await memoryManager.readLatestHistory(companionKey);
-    if (records.length === 0) {
-      await memoryManager.seedChatHistory(companion.seed, "\n\n", companionKey);
-    }
-    await memoryManager.writeToHistory("User: " + prompt + "\n", companionKey);
-
-    // Query Pinecone
-
-    const recentChatHistory = await memoryManager.readLatestHistory(companionKey);
-
-    
-
-    const similarDocs = await memoryManager.vectorSearch(
-      recentChatHistory,
-      companion_file_name
-    );
-
-    let relevantHistory = "";
-    if (!!similarDocs && similarDocs.length !== 0) {
-      relevantHistory = similarDocs.map((doc) => doc.pageContent).join("\n");
-    }
-    const { handlers } = LangChainStream();
-    // Call Replicate for inference
-    const model = new Replicate({
-      model:
-        "a16z-infra/llama-2-13b-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5",
-      input: {
-        max_length: 2048,
-      },
-      apiKey: process.env.REPLICATE_API_TOKEN,
-      callbackManager: CallbackManager.fromHandlers(handlers),
-      
+    // Last 20 turns between this user and this companion (includes the prompt just saved).
+    const history = await prismadb.message.findMany({
+      where: { companionId: companion.id, userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
     });
 
-    
-    model.verbose = true;
+    const messages: ChatTurn[] = [
+      {
+        role: "system",
+        content:
+          `You are ${companion.name}. Stay fully in character and reply as ${companion.name} would, ` +
+          `in a natural conversational tone. Reply in plain sentences, without a "${companion.name}:" prefix, ` +
+          `and keep replies short (1-4 sentences) unless asked for more. ` +
+          `Reply in the same language and script the user writes in (English, Hindi, Hinglish, Telugu, etc.).\n\n` +
+          `Character instructions:\n${companion.instructions}\n\n` +
+          `Example conversation showing how ${companion.name} talks:\n${companion.seed}`,
+      },
+      ...history.reverse().map<ChatTurn>((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.content,
+      })),
+    ];
 
-    const resp = String(
-      await model
-        .call(
-          `
-        ONLY generate plain sentences without prefix of who is speaking. DO NOT use ${companion.name}: prefix. 
+    const response = await sarvamChat(messages);
 
-        ${companion.instructions}
-
-        Below are relevant details about ${companion.name}'s past and the conversation you are in.
-        ${relevantHistory}
-
-
-        ${recentChatHistory}\n${companion.name}:`
-        )
-        .catch(console.error)
-    );
-
-    const cleaned = resp.replaceAll(",", "");
-    const chunks = cleaned.split("\n");
-    const response = chunks[0];
-
-    await memoryManager.writeToHistory("" + response.trim(), companionKey);
-    var Readable = require("stream").Readable;
-
-    let s = new Readable();
-    s.push(response);
-    s.push(null);
-    if (response !== undefined && response.length > 1) {
-      memoryManager.writeToHistory("" + response.trim(), companionKey);
-
-      await prismadb.companion.update({
-        where: {
-          id: params.chatId
-        },
+    if (response.length > 0) {
+      await prismadb.message.create({
         data: {
-          messages: {
-            create: {
-              content: response.trim(),
-              role: "system",
-              userId: user.id,
-            },
-          },
-        }
+          companionId: companion.id,
+          content: response,
+          role: "system",
+          userId: user.id,
+        },
       });
     }
 
-    return new StreamingTextResponse(s);
+    return new Response(response, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (error) {
+    console.error("[CHAT_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
-};
+}

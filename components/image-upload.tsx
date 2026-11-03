@@ -31,7 +31,7 @@ export const ImageUpload = ({
       <CldUploadButton 
       options={{ maxFiles: 1 }} 
       onUpload={(result: any) => onChange(result.info.secure_url)} 
-      uploadPreset="hcl2m4do">
+      uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}>
         <div 
           className="
             p-4 
